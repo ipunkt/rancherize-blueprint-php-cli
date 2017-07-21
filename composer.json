@@ -1,0 +1,25 @@
+{
+  "name": "ipunkt/rancherize-blueprint-php-cli",
+  "description": "rancherize php cli blueprint",
+  "type": "project",
+  "license": "MIT",
+
+  "authors": [
+    {
+      "name": "Sven Speckmaier",
+      "email": "sps@ipunkt.biz"
+    }
+  ],
+  "autoload":{
+    "psr-4": {
+      "RancherizeBlueprintPhpCli\\": "plugin/"
+    }
+  },
+  "require": {
+    "ipunkt/rancherize": "^2.11.1"
+  },
+
+  "extra":{
+    "rancherize-provider":"RancherizeBlueprintPhpCli\\RancherBlueprintPhpCliProvider"
+  }
+}

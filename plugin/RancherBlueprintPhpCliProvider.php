@@ -16,7 +16,6 @@ class RancherBlueprintPhpCliProvider implements Provider {
 	/**
 	 */
 	public function register() {
-		// TODO: Implement register() method.
 	}
 
 	/**

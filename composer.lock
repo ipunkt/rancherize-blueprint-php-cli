@@ -4,20 +4,20 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "content-hash": "64be9bf387acba966fcedf4bf0f6b701",
+    "content-hash": "80ebc7188404994f707908e0419a5ddf",
     "packages": [
         {
             "name": "ipunkt/rancherize",
-            "version": "2.11.1",
+            "version": "2.11.3",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ipunkt/rancherize.git",
-                "reference": "17c0e24b136edf5e4e8158acb723bf79c4a91671"
+                "reference": "8c159cc5fb8ff210c03aeb160aaecca027023235"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ipunkt/rancherize/zipball/17c0e24b136edf5e4e8158acb723bf79c4a91671",
-                "reference": "17c0e24b136edf5e4e8158acb723bf79c4a91671",
+                "url": "https://api.github.com/repos/ipunkt/rancherize/zipball/8c159cc5fb8ff210c03aeb160aaecca027023235",
+                "reference": "8c159cc5fb8ff210c03aeb160aaecca027023235",
                 "shasum": ""
             },
             "require": {
@@ -57,7 +57,7 @@
                 "docker",
                 "rancher"
             ],
-            "time": "2017-07-20T13:05:37+00:00"
+            "time": "2017-07-21T15:24:46+00:00"
         },
         {
             "name": "pimple/pimple",
@@ -563,6 +563,8 @@
     "stability-flags": [],
     "prefer-stable": false,
     "prefer-lowest": false,
-    "platform": [],
+    "platform": {
+        "php": "^7.0"
+    },
     "platform-dev": []
 }

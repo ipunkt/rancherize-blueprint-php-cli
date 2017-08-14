@@ -28,6 +28,8 @@ use Symfony\Component\Console\Output\OutputInterface;
  */
 class PhpCliBlueprint implements Blueprint {
 
+	private $targetDirectory = '/var/cli/app';
+
 	/**
 	 * Provider $this->getFlag('dev', false) to detect `rancherize init php-cli --dev` in init.
 	 */
@@ -178,13 +180,13 @@ class PhpCliBlueprint implements Blueprint {
         $baseimage = $config->get('docker.base-image', 'php:7.0-alpine');
         $dockerfile->setFrom($baseimage);
 
-        $dockerfile->addVolume('/var/www/app');
+        $dockerfile->addVolume( $this->targetDirectory );
 
-        $dockerfile->setWorkdir('/var/www/app');
+        $dockerfile->setWorkdir( $this->targetDirectory );
 
         $copySuffix = $config->get('work-sub-directory', '');
         $targetSuffix = $config->get('target-sub-directory', '');
-        $dockerfile->copy('.'.$copySuffix, '/var/www/app'.$targetSuffix);
+        $dockerfile->copy('.'.$copySuffix, $this->targetDirectory .$targetSuffix);
 
         if ($config->get('add-composer', false)) {
             $dockerfile->run('php -r "copy(\'https://getcomposer.org/installer\', \'composer-setup.php\');" \
@@ -206,9 +208,7 @@ class PhpCliBlueprint implements Blueprint {
                 $dockerfile->addVolume($path);
             }
         }
-        $dockerfile->run('rm -Rf /var/www/app/.rancherize');
-
-        $dockerfile->setCommand('php '.$config->get('command', '-i'));
+        $dockerfile->run('rm -Rf '.$this->targetDirectory.'/.rancherize');
 
 
         return $dockerfile;
@@ -238,9 +238,14 @@ class PhpCliBlueprint implements Blueprint {
 			$targetSuffix = $config->get('target-sub-directory', '');
 
 			$hostDirectory = getcwd() . $mountSuffix;
-			$containerDirectory = '/var/www/app' . $targetSuffix;
+			$containerDirectory = $this->targetDirectory . $targetSuffix;
 			$serverService->addVolume($hostDirectory, $containerDirectory);
 		}
+
+		$command = 'php ' . $config->get( 'command', '-i' );
+		$serverService->setCommand($command);
+		$serverService->setRestart( Service::RESTART_START_ONCE );
+		$serverService->setWorkDir( $this->targetDirectory );
 
 		$persistentDriver = $config->get('docker.persistent-driver', 'pxd');
 		$persistentOptions = $config->get('docker.persistent-options', [

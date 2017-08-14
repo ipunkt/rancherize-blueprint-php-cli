@@ -3,6 +3,7 @@
 use Closure;
 use Rancherize\Blueprint\Blueprint;
 use Rancherize\Blueprint\Cron\CronService\CronService;
+use Rancherize\Blueprint\Cron\Schedule\Exceptions\NoScheduleConfiguredException;
 use Rancherize\Blueprint\Cron\Schedule\ScheduleParser;
 use Rancherize\Blueprint\Flags\HasFlagsTrait;
 use Rancherize\Blueprint\Infrastructure\Dockerfile\Dockerfile;
@@ -155,17 +156,7 @@ class PhpCliBlueprint implements Blueprint {
 		$service = $this->makeServerService($config, $projectConfigurable);
 		$infrastructure->addService($service);
 
-		/**
-		 * @var ScheduleParser $scheduleParser
-		 */
-		$scheduleParser = container('schedule-parser');
-		$schedule = $scheduleParser->parseSchedule($config);
-
-		/**
-		 * @var CronService $cronService
-		 */
-		$cronService = container('cron-service');
-		$cronService->makeCron($service, $schedule);
+		$this->parseCronSchedule( $config, $service );
 
 		return $infrastructure;
 	}
@@ -294,5 +285,27 @@ class PhpCliBlueprint implements Blueprint {
 			foreach ($c->get($label) as $name => $value)
 				$closure($name, $value);
 		}
+	}
+
+	/**
+	 * @param $config
+	 * @param $service
+	 */
+	protected function parseCronSchedule( $config, $service ) {
+		/**
+		 * @var ScheduleParser $scheduleParser
+		 */
+		$scheduleParser = container( 'schedule-parser' );
+		try {
+			$schedule = $scheduleParser->parseSchedule( $config );
+		} catch ( NoScheduleConfiguredException $e) {
+			return;
+		}
+
+		/**
+		 * @var CronService $cronService
+		 */
+		$cronService = container( 'cron-service' );
+		$cronService->makeCron( $service, $schedule );
 	}
 }

@@ -9,7 +9,10 @@ use Rancherize\Blueprint\Flags\HasFlagsTrait;
 use Rancherize\Blueprint\Infrastructure\Dockerfile\Dockerfile;
 use Rancherize\Blueprint\Infrastructure\Infrastructure;
 use Rancherize\Blueprint\Infrastructure\Service\Service;
+use Rancherize\Blueprint\Infrastructure\Service\Services\AppService;
 use Rancherize\Blueprint\Scheduler\SchedulerInitializer\SchedulerInitializer;
+use Rancherize\Blueprint\Scheduler\SchedulerParser\SchedulerParser;
+use Rancherize\Blueprint\TakesDockerAccount;
 use Rancherize\Blueprint\Validation\Exceptions\ValidationFailedException;
 use Rancherize\Blueprint\Validation\Traits\HasValidatorTrait;
 use Rancherize\Configuration\Configurable;
@@ -19,6 +22,7 @@ use Rancherize\Configuration\PrefixConfigurationDecorator;
 use Rancherize\Configuration\Services\ConfigurableFallback;
 use Rancherize\Configuration\Services\ConfigurationFallback;
 use Rancherize\Configuration\Services\ConfigurationInitializer;
+use Rancherize\Docker\DockerAccount;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 
@@ -26,7 +30,7 @@ use Symfony\Component\Console\Output\OutputInterface;
  * Class PhpCliBlueprint
  * @package RancherizeBlueprintPhpCli\PhpCliBlueprint
  */
-class PhpCliBlueprint implements Blueprint {
+class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 
 	private $targetDirectory = '/var/cli/app';
 
@@ -36,6 +40,11 @@ class PhpCliBlueprint implements Blueprint {
 	use HasFlagsTrait;
 
     use HasValidatorTrait;
+
+	/**
+	 * @var SchedulerParser
+	 */
+    protected $rancherSchedulerParser;
 
 	/**
 	 * Fill the configurable with all possible options with explanatory default options set
@@ -157,6 +166,7 @@ class PhpCliBlueprint implements Blueprint {
 		// TODO: Implement build() method.
 		$service = $this->makeServerService($config, $projectConfigurable);
 		$infrastructure->addService($service);
+		$this->addAppContainer($version, $config, $service, $infrastructure);
 
 		$this->parseCronSchedule( $config, $service );
 
@@ -242,6 +252,7 @@ class PhpCliBlueprint implements Blueprint {
 			$serverService->addVolume($hostDirectory, $containerDirectory);
 		}
 
+
 		$command = 'php ' . $config->get( 'command', '-i' );
 		$serverService->setCommand($command);
 		$serverService->setRestart( Service::RESTART_START_ONCE );
@@ -273,6 +284,8 @@ class PhpCliBlueprint implements Blueprint {
 			foreach ($config->get('external_links') as $name => $value)
 				$serverService->addExternalLink($value, $name);
 		}
+
+		$this->rancherSchedulerParser->parse($serverService, $config);
 
 		return $serverService;
 	}
@@ -312,5 +325,61 @@ class PhpCliBlueprint implements Blueprint {
 		 */
 		$cronService = container( 'cron-service' );
 		$cronService->makeCron( $service, $schedule );
+	}
+
+	/**
+	 * @param string $version
+	 * @param Configuration $config
+	 * @param Service $serverService
+	 * @param Infrastructure $infrastructure
+	 */
+	protected function addAppContainer($version, Configuration $config, Service $serverService, Infrastructure $infrastructure) {
+		if (!$config->get('use-app-container', true))
+			return;
+
+		$imageName = $config->get('docker.repository') . ':' . $config->get('docker.version-prefix') . $version;
+		$imageNameWithServer = $this->applyServer($imageName);
+
+		$appService = new AppService($imageNameWithServer);
+		$appService->setName($config->get('service-name') . 'App');
+
+		$serverService->addSidekick($appService);
+		$serverService->addVolumeFrom($appService);
+		$infrastructure->addService($appService);
+	}
+
+	/**
+	 * @var DockerAccount
+	 */
+	protected $dockerAccount = null;
+
+	protected function applyServer(string $imageName) {
+		if( $this->dockerAccount === null)
+			return $imageName;
+
+		$server = $this->dockerAccount->getServer();
+		if( empty($server) )
+			return $imageName;
+
+		$serverHost = parse_url($server, PHP_URL_HOST);
+		$imageNameWithServer = $serverHost.'/'.$imageName;
+
+		return $imageNameWithServer;
+	}
+
+	/**
+	 * @param DockerAccount $dockerAccount
+	 * @return $this
+	 */
+	public function setDockerAccount( DockerAccount $dockerAccount ) {
+		$this->dockerAccount = $dockerAccount;
+		return $this;
+	}
+
+	/**
+	 * @param SchedulerParser $rancherSchedulerParser
+	 */
+	public function setRancherSchedulerParser( SchedulerParser $rancherSchedulerParser ) {
+		$this->rancherSchedulerParser = $rancherSchedulerParser;
 	}
 }

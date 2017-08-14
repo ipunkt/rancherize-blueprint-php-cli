@@ -1,9 +1,13 @@
 <?php namespace RancherizeBlueprintPhpCli\PhpCliBlueprint;
 
+use Closure;
 use Rancherize\Blueprint\Blueprint;
+use Rancherize\Blueprint\Cron\CronService\CronService;
+use Rancherize\Blueprint\Cron\Schedule\ScheduleParser;
 use Rancherize\Blueprint\Flags\HasFlagsTrait;
 use Rancherize\Blueprint\Infrastructure\Dockerfile\Dockerfile;
 use Rancherize\Blueprint\Infrastructure\Infrastructure;
+use Rancherize\Blueprint\Infrastructure\Service\Service;
 use Rancherize\Blueprint\Scheduler\SchedulerInitializer\SchedulerInitializer;
 use Rancherize\Blueprint\Validation\Exceptions\ValidationFailedException;
 use Rancherize\Blueprint\Validation\Traits\HasValidatorTrait;
@@ -148,6 +152,20 @@ class PhpCliBlueprint implements Blueprint {
 		$infrastructure->setDockerfile($dockerfile);
 
 		// TODO: Implement build() method.
+		$service = $this->makeServerService($config, $projectConfigurable);
+		$infrastructure->addService($service);
+
+		/**
+		 * @var ScheduleParser $scheduleParser
+		 */
+		$scheduleParser = container('schedule-parser');
+		$schedule = $scheduleParser->parseSchedule($config);
+
+		/**
+		 * @var CronService $cronService
+		 */
+		$cronService = container('cron-service');
+		$cronService->makeCron($service, $schedule);
 
 		return $infrastructure;
 	}
@@ -159,9 +177,14 @@ class PhpCliBlueprint implements Blueprint {
     protected function makeDockerfile(Configuration $config):Dockerfile {
         $dockerfile = new Dockerfile();
 
-        $baseimage = $config->has('php')
-                ? 'php:' . $config->get('php', '7.0') . '-alpine'
-                : $config->get('docker.base-image', 'php:7.0-alpine');
+	    /**
+	     * @IMPORTANT
+	     *
+	     * This is NOT the php version that will later run the image.
+	     * It is the base of the app DATA image.
+	     * The php image that will actually run the app is the one set for the ServerService with $serverService->setImage()
+	     */
+        $baseimage = $config->get('docker.base-image', 'php:7.0-alpine');
         $dockerfile->setFrom($baseimage);
 
         $dockerfile->addVolume('/var/www/app');
@@ -196,7 +219,80 @@ class PhpCliBlueprint implements Blueprint {
 
         $dockerfile->setCommand('php '.$config->get('command', '-i'));
 
+
         return $dockerfile;
     }
 
+	/**
+	 * @param Configuration $config
+	 * @param Configuration $default
+	 * @return Service
+	 */
+	protected function makeServerService(Configuration $config, Configuration $default) : Service {
+		$serverService = new Service();
+		$serverService->setName($config->get('service-name'));
+
+		$phpImage = $config->has('php')
+			? 'php:' . $config->get('php', '7.0') . '-alpine'
+			: $config->get('docker.base-image', 'php:7.0-alpine');
+		$serverService->setImage($config->get('docker.image', $phpImage));
+
+		if( $config->get('sync-user-into-container', false) ) {
+			$serverService->setEnvironmentVariable('USER_ID', getmyuid());
+			$serverService->setEnvironmentVariable('GROUP_ID', getmygid());
+		}
+
+		if ($config->get('mount-workdir', false)) {
+			$mountSuffix = $config->get('work-sub-directory', '');
+			$targetSuffix = $config->get('target-sub-directory', '');
+
+			$hostDirectory = getcwd() . $mountSuffix;
+			$containerDirectory = '/var/www/app' . $targetSuffix;
+			$serverService->addVolume($hostDirectory, $containerDirectory);
+		}
+
+		$persistentDriver = $config->get('docker.persistent-driver', 'pxd');
+		$persistentOptions = $config->get('docker.persistent-options', [
+			'repl' => '3',
+			'shared' => 'true',
+		]);
+		foreach( $config->get('persistent-volumes', []) as $volumeName => $path ) {
+			$volume = new \Rancherize\Blueprint\Infrastructure\Service\Volume();
+			$volume->setDriver($persistentDriver);
+			$volume->setOptions($persistentOptions);
+			$volume->setExternalPath($volumeName);
+			$volume->setInternalPath($path);
+			$serverService->addVolume( $volume );
+		}
+
+		$this->addAll([$default, $config], 'environment', function(string $name, $value) use ($serverService) {
+			$serverService->setEnvironmentVariable($name, $value);
+		});
+
+		$this->addAll([$default, $config], 'labels', function(string $name, $value) use ($serverService) {
+			$serverService->addLabel($name, $value);
+		});
+
+		if ($config->has('external_links')) {
+			foreach ($config->get('external_links') as $name => $value)
+				$serverService->addExternalLink($value, $name);
+		}
+
+		return $serverService;
+	}
+
+	/**
+	 * @param Configuration[] $configs
+	 * @param string $label
+	 * @param Closure $closure
+	 */
+	private function addAll(array $configs, string $label, Closure $closure) {
+		foreach($configs as $c) {
+			if(!$c->has($label))
+				continue;
+
+			foreach ($c->get($label) as $name => $value)
+				$closure($name, $value);
+		}
+	}
 }

@@ -1,5 +1,6 @@
 <?php namespace RancherizeBlueprintPhpCli;
 
+use Pimple\Container;
 use Rancherize\Blueprint\Factory\BlueprintFactory;
 use Rancherize\Plugin\Provider;
 use Rancherize\Plugin\ProviderTrait;
@@ -26,6 +27,12 @@ class RancherBlueprintPhpCliProvider implements Provider {
 		 */
 		$blueprintFactory = container('blueprint-factory');
 
-		$blueprintFactory->add('php-cli', PhpCliBlueprint::class);
+		$blueprintFactory->add('php-cli', function(Container $c) {
+			$blueprint = new PhpCliBlueprint;
+
+			$blueprint->setRancherSchedulerParser( $c['scheduler-parser'] );
+
+			return $blueprint;
+		});
 	}
 }

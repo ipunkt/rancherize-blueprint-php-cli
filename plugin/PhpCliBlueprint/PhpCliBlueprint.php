@@ -99,7 +99,8 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 			/**
 			 * Provide defaults for local development environment
 			 */
-            $initializer->init($fallbackConfigurable, 'mount-workdir', true);
+			$initializer->init($fallbackConfigurable, 'mount-workdir', true);
+			$initializer->init($fallbackConfigurable, 'use-app-container', false);
 		} else {
             $initializer->init($fallbackConfigurable, 'rancher.stack', 'Project');
 

@@ -24,7 +24,7 @@ class RancherBlueprintPhpCliProvider implements Provider {
 		/**
 		 * @var BlueprintFactory $blueprintFactory
 		 */
-		$blueprintFactory = container('blueprint-factory');
+		$blueprintFactory = $this->container[BlueprintFactory::class];
 
 		$blueprintFactory->add('php-cli', PhpCliBlueprint::class);
 	}

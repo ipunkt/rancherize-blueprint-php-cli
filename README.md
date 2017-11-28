@@ -24,6 +24,11 @@ Note that as of the time of writing all environments will use the same blueprint
 - `command`: The command that will be executed. The exact command that will be run is `php VALUEGIVEN` inside `/var/cli/app` where your app is mounted.
 - `add-composer`: Add a composer.phar to your app directory
 
+The base image version will be resolved in the following steps:
+1. `php` set a version, then use `php:$version-alpine`
+2. `docker.base-image` set, then use this image
+3. nothing of the above, use `php:7.0-alpine`
+
 #### Supported rancherize services
 - [scheduler](https://github.com/ipunkt/rancherize/tree/master/app/Blueprint/Scheduler)
 - Cron [schedule](https://github.com/ipunkt/rancherize/tree/master/app/Blueprint/Cron) IMPORTANT: Not the full `cron` syntax is supported. Only the `schedule` part is used on the top level of the environment

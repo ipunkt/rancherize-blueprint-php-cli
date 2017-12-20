@@ -2,6 +2,9 @@
 
 use Pimple\Container;
 use Rancherize\Blueprint\Factory\BlueprintFactory;
+use Rancherize\Blueprint\Infrastructure\Service\Maker\PhpFpm\AlpineDebugImageBuilder;
+use Rancherize\Blueprint\Scheduler\SchedulerParser\SchedulerParser;
+use Rancherize\Blueprint\Services\Database\DatabaseBuilder\DatabaseBuilder;
 use Rancherize\Plugin\Provider;
 use Rancherize\Plugin\ProviderTrait;
 use RancherizeBlueprintPhpCli\PhpCliBlueprint\PhpCliBlueprint;
@@ -17,6 +20,9 @@ class RancherBlueprintPhpCliProvider implements Provider {
 	/**
 	 */
 	public function register() {
+		$this->container[PhpCliBlueprint::class] = function($c) {
+			return new PhpCliBlueprint( $c[AlpineDebugImageBuilder::class], $c['database-builder'] );
+		};
 	}
 
 	/**
@@ -28,7 +34,10 @@ class RancherBlueprintPhpCliProvider implements Provider {
 		$blueprintFactory = $this->container[BlueprintFactory::class];
 
 		$blueprintFactory->add('php-cli', function(Container $c) {
-			$blueprint = new PhpCliBlueprint;
+			/**
+			 * @var PhpCliBlueprint $blueprint
+			 */
+			$blueprint = $c[PhpCliBlueprint::class];
 
 			$blueprint->setRancherSchedulerParser( $c['scheduler-parser'] );
 

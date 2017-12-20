@@ -8,10 +8,12 @@ use Rancherize\Blueprint\Cron\Schedule\ScheduleParser;
 use Rancherize\Blueprint\Flags\HasFlagsTrait;
 use Rancherize\Blueprint\Infrastructure\Dockerfile\Dockerfile;
 use Rancherize\Blueprint\Infrastructure\Infrastructure;
+use Rancherize\Blueprint\Infrastructure\Service\Maker\PhpFpm\AlpineDebugImageBuilder;
 use Rancherize\Blueprint\Infrastructure\Service\Service;
 use Rancherize\Blueprint\Infrastructure\Service\Services\AppService;
 use Rancherize\Blueprint\Scheduler\SchedulerInitializer\SchedulerInitializer;
 use Rancherize\Blueprint\Scheduler\SchedulerParser\SchedulerParser;
+use Rancherize\Blueprint\Services\Database\DatabaseBuilder\DatabaseBuilder;
 use Rancherize\Blueprint\TakesDockerAccount;
 use Rancherize\Blueprint\Validation\Exceptions\ValidationFailedException;
 use Rancherize\Blueprint\Validation\Traits\HasValidatorTrait;
@@ -45,6 +47,21 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 	 * @var SchedulerParser
 	 */
     protected $rancherSchedulerParser;
+
+	/**
+	 * @var AlpineDebugImageBuilder
+	 */
+    protected $debugImageBuilder;
+
+	/**
+	 * @var DatabaseBuilder
+	 */
+    protected $databaseBuilder;
+
+    public function __construct(AlpineDebugImageBuilder $debugImageBuilder, DatabaseBuilder $databaseBuilder) {
+    	$this->debugImageBuilder = $debugImageBuilder;
+    	$this->databaseBuilder = $databaseBuilder;
+    }
 
 	/**
 	 * Fill the configurable with all possible options with explanatory default options set
@@ -167,9 +184,13 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 		// TODO: Implement build() method.
 		$service = $this->makeServerService($config, $projectConfigurable);
 		$infrastructure->addService($service);
-		$this->addAppContainer($version, $config, $service, $infrastructure);
+		$appContainer = $this->addAppContainer($version, $config, $service, $infrastructure);
 
 		$this->parseCronSchedule( $config, $service );
+
+		$this->databaseBuilder->setAppService( $appContainer );
+		$this->databaseBuilder->setServerService($service);
+		$this->databaseBuilder->addDatabaseService( $config, $service, $infrastructure);
 
 		return $infrastructure;
 	}
@@ -203,7 +224,7 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 		/**
 		 * use composer programmatical
 		 * see https://getcomposer.org/doc/faqs/how-to-install-composer-programmatically.md
-		 */ 
+		 */
             $dockerfile->run('curl -sSL "https://gist.githubusercontent.com/justb81/1006b89e41e41e1c848fe91969af7a0b/raw/c12faf968e659356ec1cb53f313e7f8383836be3/getcomposer.sh" | sh && COMPOSER_ALLOW_SUPERUSER=1 ./composer.phar install --no-dev && rm composer.phar');
         }
 
@@ -235,9 +256,15 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 		$serverService->setName($config->get('service-name'));
 
 		$phpImage = $config->has('php')
-			? 'php:' . $config->get('php', '7.0') . '-alpine'
-			: $config->get('docker.base-image', 'php:7.0-alpine');
-		$serverService->setImage($config->get('docker.image', $phpImage));
+			? 'ipunktbs/php:' . $config->get('php', '7.0')
+			: $config->get('docker.base-image', 'ipunktbs/php:7.0');
+
+		$imageName = $config->get( 'docker.image', $phpImage );
+		$serverService->setImage( $imageName );
+		if( $config->has('debug') ) {
+			$serverService->setImage( $this->debugImageBuilder->makeImage($imageName, $config->get('xdebug-version') ) );
+			$serverService->setEnvironmentVariable('XDEBUG_REMOTE_HOST', $config->get('debug-listener', gethostname()) );
+		}
 
 		if( $config->get('sync-user-into-container', false) ) {
 			$serverService->setEnvironmentVariable('USER_ID', getmyuid());
@@ -347,6 +374,8 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 		$serverService->addSidekick($appService);
 		$serverService->addVolumeFrom($appService);
 		$infrastructure->addService($appService);
+
+		return $appService;
 	}
 
 	/**

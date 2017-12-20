@@ -5,12 +5,15 @@ use Rancherize\Blueprint\Blueprint;
 use Rancherize\Blueprint\Cron\CronService\CronService;
 use Rancherize\Blueprint\Cron\Schedule\Exceptions\NoScheduleConfiguredException;
 use Rancherize\Blueprint\Cron\Schedule\ScheduleParser;
+use Rancherize\Blueprint\Events\MainServiceBuiltEvent;
 use Rancherize\Blueprint\Flags\HasFlagsTrait;
 use Rancherize\Blueprint\Infrastructure\Dockerfile\Dockerfile;
 use Rancherize\Blueprint\Infrastructure\Infrastructure;
 use Rancherize\Blueprint\Infrastructure\Service\Maker\PhpFpm\AlpineDebugImageBuilder;
+use Rancherize\Blueprint\Infrastructure\Service\Maker\PhpFpm\PhpFpmMaker;
 use Rancherize\Blueprint\Infrastructure\Service\Service;
 use Rancherize\Blueprint\Infrastructure\Service\Services\AppService;
+use Rancherize\Blueprint\Infrastructure\Service\Volume;
 use Rancherize\Blueprint\Scheduler\SchedulerInitializer\SchedulerInitializer;
 use Rancherize\Blueprint\Scheduler\SchedulerParser\SchedulerParser;
 use Rancherize\Blueprint\Services\Database\DatabaseBuilder\DatabaseBuilder;
@@ -27,6 +30,7 @@ use Rancherize\Configuration\Services\ConfigurationInitializer;
 use Rancherize\Docker\DockerAccount;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\EventDispatcher\EventDispatcher;
 
 /**
  * Class PhpCliBlueprint
@@ -58,9 +62,22 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 	 */
     protected $databaseBuilder;
 
-    public function __construct(AlpineDebugImageBuilder $debugImageBuilder, DatabaseBuilder $databaseBuilder) {
+	/**
+	 * @var EventDispatcher
+	 */
+    protected $eventDispatcher;
+
+	/**
+	 * @var PhpFpmMaker
+	 */
+    protected $fpmMaker;
+
+    public function __construct(EventDispatcher $eventDispatcher, AlpineDebugImageBuilder $debugImageBuilder,
+		DatabaseBuilder $databaseBuilder, PhpFpmMaker $fpmMaker) {
     	$this->debugImageBuilder = $debugImageBuilder;
     	$this->databaseBuilder = $databaseBuilder;
+    	$this->eventDispatcher = $eventDispatcher;
+    	$this->fpmMaker = $fpmMaker;
     }
 
 	/**
@@ -192,6 +209,10 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 		$this->databaseBuilder->setServerService($service);
 		$this->databaseBuilder->addDatabaseService( $config, $service, $infrastructure);
 
+		$this->fpmMaker->setAppService($appContainer);
+		$mainServiceBuiltEvent = new MainServiceBuiltEvent($infrastructure, $service, $config);
+		$this->eventDispatcher->dispatch($mainServiceBuiltEvent::NAME, $mainServiceBuiltEvent);
+
 		return $infrastructure;
 	}
 
@@ -269,15 +290,6 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 		if( $config->get('sync-user-into-container', false) ) {
 			$serverService->setEnvironmentVariable('USER_ID', getmyuid());
 			$serverService->setEnvironmentVariable('GROUP_ID', getmygid());
-		}
-
-		if ($config->get('mount-workdir', false)) {
-			$mountSuffix = $config->get('work-sub-directory', '');
-			$targetSuffix = $config->get('target-sub-directory', '');
-
-			$hostDirectory = getcwd() . $mountSuffix;
-			$containerDirectory = $this->targetDirectory . $targetSuffix;
-			$serverService->addVolume($hostDirectory, $containerDirectory);
 		}
 
 
@@ -362,18 +374,43 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 	 * @param Infrastructure $infrastructure
 	 */
 	protected function addAppContainer($version, Configuration $config, Service $serverService, Infrastructure $infrastructure) {
-		if (!$config->get('use-app-container', true))
-			return;
 
 		$imageName = $config->get('docker.repository') . ':' . $config->get('docker.version-prefix') . $version;
 		$imageNameWithServer = $this->applyServer($imageName);
 
-		$appService = new AppService($imageNameWithServer);
-		$appService->setName($config->get('service-name') . 'App');
+		if ($config->get('use-app-container', true)) {
 
-		$serverService->addSidekick($appService);
-		$serverService->addVolumeFrom($appService);
-		$infrastructure->addService($appService);
+			$appService = new AppService($imageNameWithServer);
+			$appService->setName($config->get('service-name') . 'App');
+
+			$serverService->addSidekick($appService);
+			$serverService->addVolumeFrom($appService);
+
+			$infrastructure->addService($appService);
+
+
+			return $appService;
+		}
+
+
+		if ($config->get('mount-workdir', false)) {
+
+			$mountSuffix = $config->get('work-sub-directory', '');
+			$targetSuffix = $config->get('target-sub-directory', '');
+
+			$appService = new Service();
+			$appService->setName($config->get('service-name' ));
+			$appService->setImage('busybox');
+
+			$volume = new Volume();
+			$hostDirectory = getcwd() . $mountSuffix;
+			$containerDirectory = $this->targetDirectory . $targetSuffix;
+			$volume->setExternalPath($hostDirectory);
+			$volume->setInternalPath($containerDirectory);
+			$appService->addVolume($volume);
+
+			$infrastructure->addService($appService);
+		}
 
 		return $appService;
 	}

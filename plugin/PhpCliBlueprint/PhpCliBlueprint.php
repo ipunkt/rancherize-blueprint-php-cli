@@ -399,8 +399,9 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 			$targetSuffix = $config->get('target-sub-directory', '');
 
 			$appService = new Service();
-			$appService->setName($config->get('service-name' ));
+			$appService->setName($config->get('service-name' ).'App');
 			$appService->setImage('busybox');
+			$appService->setRestart(Service::RESTART_NEVER);
 
 			$volume = new Volume();
 			$hostDirectory = getcwd() . $mountSuffix;
@@ -408,6 +409,7 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 			$volume->setExternalPath($hostDirectory);
 			$volume->setInternalPath($containerDirectory);
 			$appService->addVolume($volume);
+			$serverService->addVolumeFrom($appService);
 
 			$infrastructure->addService($appService);
 		}

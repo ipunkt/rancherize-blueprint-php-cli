@@ -296,6 +296,15 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 		$command = 'php ' . $config->get( 'command', '-i' );
 		$serverService->setCommand($command);
 		$serverService->setRestart( Service::RESTART_START_ONCE );
+		switch( $config->get('restart') ) {
+			case 'always':
+				$serverService->setRestart(Service::RESTART_AWAYS);
+				break;
+			case 'unless-stopped':
+				$serverService->setRestart(Service::RESTART_UNLESS_STOPPED);
+				break;
+			default:
+		}
 		$serverService->setWorkDir( $this->targetDirectory );
 
 		$persistentDriver = $config->get('docker.persistent-driver', 'pxd');

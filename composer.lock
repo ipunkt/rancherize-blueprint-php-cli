@@ -1,27 +1,27 @@
 {
     "_readme": [
         "This file locks the dependencies of your project to a known state",
-        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
+        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "88bb922e10f0dbbe64b2cf2f4aec3187",
+    "content-hash": "a0e99af9707e796cb0a911498b088eaf",
     "packages": [
         {
             "name": "ipunkt/rancherize",
-            "version": "2.20.2",
+            "version": "2.28.6",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ipunkt/rancherize.git",
-                "reference": "9b4b1f4805b23b22cfe72c949fdb6de5796b29b9"
+                "reference": "30c965b23db4f2a30b9a173ec68305e3a0ee89f2"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ipunkt/rancherize/zipball/9b4b1f4805b23b22cfe72c949fdb6de5796b29b9",
-                "reference": "9b4b1f4805b23b22cfe72c949fdb6de5796b29b9",
+                "url": "https://api.github.com/repos/ipunkt/rancherize/zipball/30c965b23db4f2a30b9a173ec68305e3a0ee89f2",
+                "reference": "30c965b23db4f2a30b9a173ec68305e3a0ee89f2",
                 "shasum": ""
             },
             "require": {
-                "ipunkt/rancherize-php53": "^1.1.1",
+                "ipunkt/rancherize-php53": "^1.4.0",
                 "pimple/pimple": "^3.0",
                 "symfony/console": "^3.1",
                 "symfony/event-dispatcher": "^3.1",
@@ -64,24 +64,24 @@
                 "docker",
                 "rancher"
             ],
-            "time": "2018-01-31T15:26:33+00:00"
+            "time": "2018-09-26T07:34:26+00:00"
         },
         {
             "name": "ipunkt/rancherize-php53",
-            "version": "1.1.1",
+            "version": "1.5.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ipunkt/rancherize-php53.git",
-                "reference": "e363607b8def61df6288bacead2cb47defd28eaf"
+                "reference": "d512507326619e7e5a1cc50a5e5c00dda38cde50"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ipunkt/rancherize-php53/zipball/e363607b8def61df6288bacead2cb47defd28eaf",
-                "reference": "e363607b8def61df6288bacead2cb47defd28eaf",
+                "url": "https://api.github.com/repos/ipunkt/rancherize-php53/zipball/d512507326619e7e5a1cc50a5e5c00dda38cde50",
+                "reference": "d512507326619e7e5a1cc50a5e5c00dda38cde50",
                 "shasum": ""
             },
             "require-dev": {
-                "ipunkt/rancherize": "^2.20.0"
+                "ipunkt/rancherize": "^2.24.1"
             },
             "type": "project",
             "extra": {
@@ -103,7 +103,7 @@
                 }
             ],
             "description": "Rancherize plugin to publish images to an ecr repository",
-            "time": "2018-01-31T14:49:12+00:00"
+            "time": "2018-09-13T07:36:04+00:00"
         },
         {
             "name": "pimple/pimple",

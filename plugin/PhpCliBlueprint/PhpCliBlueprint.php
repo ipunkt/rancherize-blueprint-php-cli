@@ -5,6 +5,7 @@ use Rancherize\Blueprint\Blueprint;
 use Rancherize\Blueprint\Cron\CronService\CronService;
 use Rancherize\Blueprint\Cron\Schedule\Exceptions\NoScheduleConfiguredException;
 use Rancherize\Blueprint\Cron\Schedule\ScheduleParser;
+use Rancherize\Blueprint\Events\AppServiceEvent;
 use Rancherize\Blueprint\Events\MainServiceBuiltEvent;
 use Rancherize\Blueprint\Flags\HasFlagsTrait;
 use Rancherize\Blueprint\Infrastructure\Dockerfile\Dockerfile;
@@ -422,6 +423,9 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 
 			$infrastructure->addService($appService);
 		}
+
+		if( $appService instanceof Service)
+			$this->eventDispatcher->dispatch(AppServiceEvent::NAME, new AppServiceEvent($infrastructure, $appService, $config));
 
 		return $appService;
 	}

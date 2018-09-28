@@ -17,7 +17,7 @@
   },
   "require": {
     "php": "^7.0",
-    "ipunkt/rancherize": "^2.18.4"
+    "ipunkt/rancherize": "^2.28.3"
   },
 
   "extra":{

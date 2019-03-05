@@ -32,6 +32,7 @@ use Rancherize\Docker\DockerAccount;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\EventDispatcher\EventDispatcher;
+use Rancherize\Blueprint\Volumes\VolumeService\VolumeService;
 
 /**
  * Class PhpCliBlueprint
@@ -209,6 +210,13 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 		$this->databaseBuilder->setAppService( $appContainer );
 		$this->databaseBuilder->setServerService($service);
 		$this->databaseBuilder->addDatabaseService( $config, $service, $infrastructure);
+
+
+        /**
+         * @var VolumeService $volumesService
+         */
+        $volumesService = container('volume-service');
+        $volumesService->parse($config, $appContainer);
 
 		$this->fpmMaker->setAppService($appContainer);
 		$mainServiceBuiltEvent = new MainServiceBuiltEvent($infrastructure, $service, $config);

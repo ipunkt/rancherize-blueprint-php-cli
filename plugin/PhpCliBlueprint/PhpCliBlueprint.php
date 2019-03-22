@@ -292,8 +292,16 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
         $serverService->setName($serviceName);
 
 		if( $config->get('sync-user-into-container', false) ) {
-			$serverService->setEnvironmentVariable('USER_ID', getmyuid());
-			$serverService->setEnvironmentVariable('GROUP_ID', getmygid());
+
+		    $userId = getenv('USER_ID');
+		    if( empty($userId) )
+		        $userId = getmyuid();
+			$serverService->setEnvironmentVariable('USER_ID', $userId);
+
+			$groupId = getenv('GROUP_ID');
+			if( empty($groupId) )
+			    $groupId = getmygid();
+			$serverService->setEnvironmentVariable('GROUP_ID', $groupId);
 		}
 
 		$serverService->setRestart( Service::RESTART_START_ONCE );

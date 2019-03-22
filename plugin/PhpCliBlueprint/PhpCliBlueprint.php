@@ -219,6 +219,7 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
         $volumesService->parse($config, $appContainer);
 
 		$this->fpmMaker->setAppService($appContainer);
+
 		$mainServiceBuiltEvent = new MainServiceBuiltEvent($infrastructure, $service, $config);
 		$this->eventDispatcher->dispatch($mainServiceBuiltEvent::NAME, $mainServiceBuiltEvent);
 
@@ -282,32 +283,23 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 	 * @return Service
 	 */
 	protected function makeServerService(Configuration $config, Configuration $default) : Service {
-		$serverService = new Service();
-		$serverService->setName($config->get('service-name'));
 
-		$phpImage = $config->has('php')
-			? 'ipunktbs/php:' . $config->get('php', '7.0')
-			: $config->get('docker.base-image', 'ipunktbs/php:7.0');
+        $serviceName = $config->get('service-name');
+        $command = 'php ' . $config->get( 'command', '-i' );
 
-		$imageName = $config->get( 'docker.image', $phpImage );
-		$serverService->setImage( $imageName );
-		if( $config->has('debug') ) {
-			$serverService->setImage( $this->debugImageBuilder->makeImage($imageName, $config->get('xdebug-version') ) );
-			$serverService->setEnvironmentVariable('XDEBUG_REMOTE_HOST', $config->get('debug-listener', gethostname()) );
-		}
+		$serverService = $this->fpmMaker->makeCommand($serviceName, $command, new Service(), $config);
+
+        $serverService->setName($serviceName);
 
 		if( $config->get('sync-user-into-container', false) ) {
 			$serverService->setEnvironmentVariable('USER_ID', getmyuid());
 			$serverService->setEnvironmentVariable('GROUP_ID', getmygid());
 		}
 
-
-		$command = 'php ' . $config->get( 'command', '-i' );
-		$serverService->setCommand($command);
 		$serverService->setRestart( Service::RESTART_START_ONCE );
 		switch( $config->get('restart') ) {
 			case 'always':
-				$serverService->setRestart(Service::RESTART_AWAYS);
+				$serverService->setRestart(Service::RESTART_ALWAYS);
 				break;
 			case 'unless-stopped':
 				$serverService->setRestart(Service::RESTART_UNLESS_STOPPED);
@@ -316,19 +308,11 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 		}
 		$serverService->setWorkDir( $this->targetDirectory );
 
-		$persistentDriver = $config->get('docker.persistent-driver', 'pxd');
-		$persistentOptions = $config->get('docker.persistent-options', [
-			'repl' => '3',
-			'shared' => 'true',
-		]);
-		foreach( $config->get('persistent-volumes', []) as $volumeName => $path ) {
-			$volume = new \Rancherize\Blueprint\Infrastructure\Service\Volume();
-			$volume->setDriver($persistentDriver);
-			$volume->setOptions($persistentOptions);
-			$volume->setExternalPath($volumeName);
-			$volume->setInternalPath($path);
-			$serverService->addVolume( $volume );
-		}
+        /**
+         * @var VolumeService $volumesService
+         */
+        $volumesService = container('volume-service');
+        $volumesService->parse($config, $serverService);
 
 		$this->addAll([$default, $config], 'environment', function(string $name, $value) use ($serverService) {
 			$serverService->setEnvironmentVariable($name, $value);

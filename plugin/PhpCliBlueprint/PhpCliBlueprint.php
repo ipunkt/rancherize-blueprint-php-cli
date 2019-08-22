@@ -285,7 +285,10 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 	protected function makeServerService(Configuration $config, Configuration $default) : Service {
 
         $serviceName = $config->get('service-name');
+
         $command = 'php ' . $config->get( 'command', '-i' );
+        if($config->get('no-php', false))
+            $command = $config->get( 'command', '/bin/sh' );
 
 		$serverService = $this->fpmMaker->makeCommand($serviceName, $command, new Service(), $config);
 

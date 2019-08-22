@@ -291,6 +291,11 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 
         $serverService->setName($serviceName);
 
+        if($config->get('tty',false))
+            $serverService->setTty(true);
+        if($config->get('stdin',false))
+            $serverService->setKeepStdin(true);
+
 		if( $config->get('sync-user-into-container', false) ) {
 
 		    $userId = getenv('USER_ID');

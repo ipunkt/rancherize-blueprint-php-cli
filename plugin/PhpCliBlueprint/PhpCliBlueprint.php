@@ -271,7 +271,7 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
                 $dockerfile->addVolume($path);
             }
         }
-        $dockerfile->run('rm -Rf '.$this->targetDirectory.'/.rancherize');
+        $dockerfile->run('rm -Rf '.$this->targetDirectory.'/.rancherize && rm -Rf '.$this->targetDirectory.'/rancherize.json');
 
 
         return $dockerfile;

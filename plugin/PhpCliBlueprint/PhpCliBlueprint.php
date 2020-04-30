@@ -8,6 +8,7 @@ use Rancherize\Blueprint\Cron\Schedule\ScheduleParser;
 use Rancherize\Blueprint\Events\AppServiceEvent;
 use Rancherize\Blueprint\Events\MainServiceBuiltEvent;
 use Rancherize\Blueprint\Flags\HasFlagsTrait;
+use Rancherize\Blueprint\Healthcheck\HealthcheckConfigurationToService\HealthcheckConfigurationToService;
 use Rancherize\Blueprint\Infrastructure\Dockerfile\Dockerfile;
 use Rancherize\Blueprint\Infrastructure\Infrastructure;
 use Rancherize\Blueprint\Infrastructure\Service\Maker\PhpFpm\AlpineDebugImageBuilder;
@@ -73,14 +74,27 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 	 * @var PhpFpmMaker
 	 */
     protected $fpmMaker;
+	/**
+	 * @var HealthcheckConfigurationToService
+	 */
+	private $healthcheckService;
 
-    public function __construct(EventDispatcher $eventDispatcher, AlpineDebugImageBuilder $debugImageBuilder,
-		DatabaseBuilder $databaseBuilder, PhpFpmMaker $fpmMaker) {
+	/**
+	 * PhpCliBlueprint constructor.
+	 * @param EventDispatcher $eventDispatcher
+	 * @param AlpineDebugImageBuilder $debugImageBuilder
+	 * @param DatabaseBuilder $databaseBuilder
+	 * @param PhpFpmMaker $fpmMaker
+	 * @param HealthcheckConfigurationToService $healthcheckService
+	 */
+	public function __construct( EventDispatcher $eventDispatcher, AlpineDebugImageBuilder $debugImageBuilder,
+	                             DatabaseBuilder $databaseBuilder, PhpFpmMaker $fpmMaker, HealthcheckConfigurationToService $healthcheckService) {
     	$this->debugImageBuilder = $debugImageBuilder;
     	$this->databaseBuilder = $databaseBuilder;
     	$this->eventDispatcher = $eventDispatcher;
     	$this->fpmMaker = $fpmMaker;
-    }
+		$this->healthcheckService = $healthcheckService;
+	}
 
 	/**
 	 * Fill the configurable with all possible options with explanatory default options set
@@ -161,7 +175,7 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
         $initializer->init($fallbackConfigurable, 'php', '7.0', $projectConfigurable);
 //        $initializer->init($fallbackConfigurable, 'extensions', []);
         $initializer->init($fallbackConfigurable, 'add-composer', false, $projectConfigurable);
-        $initializer->init($fallbackConfigurable, 'command', "-i", $projectConfigurable);
+		$initializer->init($fallbackConfigurable, 'command', "-i", $projectConfigurable);
 
     }
 
@@ -202,6 +216,7 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 
 		// TODO: Implement build() method.
 		$service = $this->makeServerService($config, $projectConfigurable);
+		$this->healthcheckService->parseToService($service, $projectConfigurable);
 		$infrastructure->addService($service);
 		$appContainer = $this->addAppContainer($version, $config, $service, $infrastructure);
 

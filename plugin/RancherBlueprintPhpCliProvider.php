@@ -2,6 +2,7 @@
 
 use Pimple\Container;
 use Rancherize\Blueprint\Factory\BlueprintFactory;
+use Rancherize\Blueprint\Healthcheck\HealthcheckConfigurationToService\HealthcheckConfigurationToService;
 use Rancherize\Blueprint\Infrastructure\Service\Maker\PhpFpm\AlpineDebugImageBuilder;
 use Rancherize\Blueprint\Infrastructure\Service\Maker\PhpFpm\PhpFpmMaker;
 use Rancherize\Blueprint\PhpCommands\Parser\PhpCommandsParser;
@@ -24,7 +25,13 @@ class RancherBlueprintPhpCliProvider implements Provider {
 	 */
 	public function register() {
 		$this->container[PhpCliBlueprint::class] = function($c) {
-			return new PhpCliBlueprint( $c[EventDispatcher::class], $c[AlpineDebugImageBuilder::class], $c['database-builder'], $c[PhpFpmMaker::class] );
+			return new PhpCliBlueprint(
+				$c[EventDispatcher::class],
+				$c[AlpineDebugImageBuilder::class],
+				$c['database-builder'],
+				$c[PhpFpmMaker::class],
+				$c[HealthcheckConfigurationToService::class]
+			);
 		};
 	}
 

@@ -13,6 +13,7 @@ use Rancherize\Blueprint\Infrastructure\Dockerfile\Dockerfile;
 use Rancherize\Blueprint\Infrastructure\Infrastructure;
 use Rancherize\Blueprint\Infrastructure\Service\Maker\PhpFpm\AlpineDebugImageBuilder;
 use Rancherize\Blueprint\Infrastructure\Service\Maker\PhpFpm\PhpFpmMaker;
+use Rancherize\Blueprint\Infrastructure\Service\NetworkMode\ShareNetworkMode;
 use Rancherize\Blueprint\Infrastructure\Service\Service;
 use Rancherize\Blueprint\Infrastructure\Service\Services\AppService;
 use Rancherize\Blueprint\Infrastructure\Service\Volume;
@@ -217,6 +218,17 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 		// TODO: Implement build() method.
 		$service = $this->makeServerService($config, $projectConfigurable);
 		$this->healthcheckService->parseToService($service, $projectConfigurable);
+
+		if($projectConfigurable->get('healthcheck.enable', false)) {
+			$httpService = new Service();
+			$httpService->setNetworkMode( new ShareNetworkMode($service) );
+			$httpService->setImage('busybox');
+			$httpService->setCommand('httpd -f');
+			$httpService->setRestart(Service::RESTART_UNLESS_STOPPED);
+			$service->addSidekick($httpService);
+			$infrastructure->addService($httpService);
+		}
+
 		$infrastructure->addService($service);
 		$appContainer = $this->addAppContainer($version, $config, $service, $infrastructure);
 

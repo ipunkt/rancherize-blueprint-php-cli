@@ -221,6 +221,9 @@ class PhpCliBlueprint implements Blueprint, TakesDockerAccount {
 
 		if($projectConfigurable->get('healthcheck.enable', false)) {
 			$httpService = new Service();
+			$httpService->setName(function() use ($service) {
+				return $service->getName().'-httpd';
+			});
 			$httpService->setNetworkMode( new ShareNetworkMode($service) );
 			$httpService->setImage('busybox');
 			$httpService->setCommand('httpd -f');
